@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Alice Life Capital OS</title>
+  <link rel="stylesheet" href="./css/main.css?v=2.2.0">
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">Alice<br>Life Capital OS</div>
+      <div class="version">Version 2.2.0 · 资产引擎重构版</div>
+      <nav id="nav">
+        <button data-page="dashboard" class="active">总览</button>
+        <button data-page="assets">资产配置</button>
+        <button data-page="asset-cache">资产缓存</button>
+        <button data-page="journal">投资日志</button>
+        <button data-page="review">周期复盘</button>
+        <button data-page="research">企业分析</button>
+        <button data-page="reading">投资阅读</button>
+        <button data-page="consumption">消费分析</button>
+        <button data-page="ai">AI 协作</button>
+        <button data-page="data-center">数据管理</button>
+        <button data-page="changelog">更新日志</button>
+      </nav>
+    </aside>
+    <main>
+      <div class="topbar">
+        <div>
+          <h1 id="pageTitle">资产总览与财富架构</h1>
+          <p id="pageSubtitle">数据按需加载，适合长期迭代。</p>
+        </div>
+      </div>
+      <div id="appView"></div>
+    </main>
+  </div>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script type="module" src="./js/app.js?v=2.2.0"></script>
+</body>
+</html>

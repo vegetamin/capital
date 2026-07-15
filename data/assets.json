@@ -1,0 +1,19 @@
+{
+  "cash": 0,
+  "fixed": 0,
+  "investmentTotal": 0,
+  "gold": 0,
+  "receivables": 0,
+  "liabilities": 0,
+  "ownerEquity": 0,
+  "netWorth": 0,
+  "housingFund": 0,
+  "annuity": 0,
+  "theoreticalAssets": 0,
+  "latestDate": "",
+  "sourceFile": "",
+  "breakdown": {
+    "cash": {},
+    "investment": {}
+  }
+}
