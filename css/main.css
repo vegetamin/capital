@@ -22,3 +22,6 @@
 .alice-chat-continue{background:#edf5ee;color:#28613e;border:1px solid #a8c7b1;margin-bottom:8px}
 .alice-chat-continue[hidden]{display:none!important}
 @media(max-width:800px){.alice-chat-panel{max-height:85vh;min-height:480px}.alice-chat-messages{max-height:none}}
+
+/* AI conversation archive */
+.alice-memory{border:1px solid #dce8df;border-radius:12px;padding:10px;margin:12px 0;background:#fbfcfb}.alice-memory summary{cursor:pointer;font-weight:650}.alice-memory-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.alice-memory input[type=text],.alice-memory input:not([type]){width:100%;margin-bottom:10px}.alice-memory-list{max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-top:10px}.alice-session-row{display:flex;align-items:center;gap:8px;border:1px solid #e0e9e2;border-radius:8px;padding:5px}.alice-session-row.selected{border-color:#70a780;background:#edf5ee}.alice-session-open{flex:1;text-align:left;display:flex;flex-direction:column;min-width:0}.alice-session-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.alice-session-open small{color:#627669;font-size:11px}.alice-chat-composer textarea{max-height:290px;min-height:130px;resize:vertical}.alice-chat-composer #aiInputCount{text-align:right;margin:4px 0}

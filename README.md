@@ -87,3 +87,14 @@ AI 财务分析现在支持 OpenAI、DeepSeek、通义千问、Kimi、智谱 GLM
 - Worker 返回 finishReason；因长度限制被截断时显示「继续生成」按钮。
 - 更新网页源码之后，使用 Worker 代理的用户**也必须**重新部署 `worker/ai-proxy.js` 才能获取截断状态。
 - 旧聊天记录继续保留在浏览器 localStorage。
+
+
+## AI 会话档案（IndexedDB）
+
+- 支持多会话、历史搜索、重命名、删除、重新打开和完整 JSON 导入/导出。
+- 自动尝试迁移旧版 `alice_os2_ai_chat_v1` 最近消息；迁移成功前不清除旧记录。
+- 每条用户和 AI 消息均保存到独立 IndexedDB `alice_os2_ai_memory`；不再保留32条上限。
+- 输入框上限由3000提高到50000字符，Ctrl+Enter发送、Enter换行；过长文本会明确提示，不再静默截断。
+- 发送给 AI 的历史仍限制最近12条消息以控制费用和上下文；完整历史保存在本机，但不会自动全部交给模型。
+- JSON 备份包含完整会话记录，不包含 AI API Key 或财务账本；请另外备份账本。
+- IndexedDB 不是云同步；浏览器清站点数据、隐身模式或更换设备均可能丢失，务必定期导出 JSON。

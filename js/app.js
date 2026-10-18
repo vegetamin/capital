@@ -1,1 +1,1 @@
-(async()=>{try{db=await openDB();state=await getDB()||base();render()}catch(e){document.getElementById('app').innerHTML='<div class="notice">初始化失败：'+esc(e.message)+'。请通过 HTTPS 网站访问，并确认浏览器允许 IndexedDB。</div>';document.getElementById('status').textContent='数据库不可用'}})();
+(async()=>{try{db=await openDB();state=await getDB()||base();render();await aiMemoryInit()}catch(e){document.getElementById('app').innerHTML='<div class="notice">初始化失败：'+esc(e.message)+'。请通过 HTTPS 网站访问，并确认浏览器允许 IndexedDB。</div>';document.getElementById('status').textContent='数据库不可用'}})();
