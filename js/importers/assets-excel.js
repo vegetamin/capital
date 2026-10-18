@@ -71,12 +71,12 @@ async function previewAssetExcel(event){
 }
 async function commitAssetExcel(){
  const p=assetExcelPending;if(!p)return;if(p.extra?.length){alert('资产明细与分类小计不一致，请先核对原表后再导入。');return;}
- const fresh=p.items.filter(x=>!state.accounts.some(a=>a.name===x.name&&a.assetSourceCategory===x.category));
+ const fresh=p.items.filter(x=>!state.accounts.some(a=>a.name.trim().replace(/\s+/g,'').toLowerCase()===x.name.trim().replace(/\s+/g,'').toLowerCase()));
  if(!fresh.length)return alert('没有需要新增的账户');
  if(!confirm(`将根据 ${p.date} 的账目新增 ${fresh.length} 个资产账户。\n不会修改既有账户、交易、持仓，也不会自动合并重名。\n若账目与现有持仓重叠，请取消并核对。\n确认导入？`))return;
  const before=state.accounts.length;
  try{
-  const batch=uid();for(const item of fresh){state.accounts.push({id:uid(),name:item.name,institution:'',kind:item.kind,opening:item.kind==='liability'?-item.amount:item.amount,asOf:item.date,assetSourceCategory:item.category,assetImportBatch:batch})}
+  const batch=uid();for(const item of fresh){state.accounts.push({id:uid(),name:item.name,institution:'',kind:item.kind,opening:item.kind==='liability'?-item.amount:item.amount,asOf:item.date,assetSourceCategory:item.category,assetImportBatch:batch,assetSourceFile:p.fileName,assetSourceSheet:p.sheetName,assetSourceRow:item.sourceRow,assetSourceColumn:item.sourceColumn})}
   state.imports.push({id:batch,type:'asset-excel',fileName:p.fileName,createdAt:now(),sheetName:p.sheetName,asOf:p.date,count:fresh.length,skipped:p.skipped.length});
   await save('asset-excel-import',p.fileName+' '+fresh.length+'项');assetExcelPending=null;alert('已导入 '+fresh.length+' 个账户；请与 Excel 账面净资产核对。');
  }catch(e){state.accounts.splice(before);alert('导入失败：'+e.message+'。请检查数据中心的账户记录。')}

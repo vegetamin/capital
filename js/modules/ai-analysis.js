@@ -37,11 +37,14 @@ function aiSnapshot(scope='both'){
  for(let i=11;i>=0;i--){const d=new Date(Number(month.slice(0,4)),Number(month.slice(5,7))-1-i,1);periods.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'))}
  const out={version:'OS2-AI-1',asOf:date,scope,dataQuality:[],notes:['资产数值来源于用户录入/导入与手工估值，未经银行对账','余额调整不计消费，投资本金不计支出','这不是交易指令或投资收益承诺']};
  if(scope==='assets'||scope==='both'){
-   const accounts=state.accounts.map(a=>({name:a.name,kind:a.kind,asOf:a.asOf||null,balance:aiRound(acctBalance(a.id))}));
+   const accounts=state.accounts.filter(a=>!a.auditExcluded).map(a=>({name:a.name,kind:a.kind,asOf:a.asOf||null,balance:aiRound(acctBalance(a.id))}));
+   const excluded=state.accounts.filter(a=>a.auditExcluded).map(a=>({name:a.name,balance:aiRound(acctBalance(a.id)),reason:"来源/余额待核，未计入汇总"}));
+   if(excluded.length)out.dataQuality.push("严重：存在"+excluded.length+"个待核账户已暂时排除财务汇总；在核对完成之前不要对整体净资产、资产配置或现金超配做确定性判断。");
+   if(state.accounts.some(a=>!a.assetImportBatch&&!a.auditReviewedAt))out.dataQuality.push("存在未标记可信来源的历史/手工账户；请在资产账户审计页面核验是否重复录入。");
    const holdings=state.holdings.map(h=>({instrument:h.name||h.symbol||h.code||'未命名持仓',quantity:h.qty,priceUnit:h.priceUnit??null,scale:h.scale??null,valuation:aiRound(h.qty*(h.priceUnit??h.priceCents*100)/(h.scale*100))}));
    const groups={};accounts.forEach(a=>groups[a.kind]=(groups[a.kind]||0)+a.balance);
-   const equity=aiRound(netWorth()),cash=aiRound(sum(state.accounts.filter(x=>['cash','bank','money'].includes(x.kind)),a=>acctBalance(a.id)));
-   out.assets={netWorth:equity,cashLiquid:cash,cashFloor:aiRound(state.policy.cashFloor),cashFloorGap:Math.round((cash-aiRound(state.policy.cashFloor))*100)/100,accountCount:accounts.length,accounts,groups,holdingCount:holdings.length,holdings};
+   const equity=aiRound(netWorth()),cash=aiRound(sum(state.accounts.filter(x=>!x.auditExcluded&&['cash','bank','money'].includes(x.kind)),a=>acctBalance(a.id)));
+   out.assets={excludedAccounts:excluded,accountAuditStatus:excluded.length?"存在待核账户，禁止做确定性总量结论":"仍需与原始银行账单核对",netWorth:equity,cashLiquid:cash,cashFloor:aiRound(state.policy.cashFloor),cashFloorGap:Math.round((cash-aiRound(state.policy.cashFloor))*100)/100,accountCount:accounts.length,accounts,groups,holdingCount:holdings.length,holdings};
    if(!accounts.length)out.dataQuality.push('未录入任何资产账户');
    if(accounts.some(a=>!a.asOf))out.dataQuality.push('有账户缺少余额日期');
    if(accounts.some(a=>a.asOf&&a.asOf<date))out.dataQuality.push('部分账户余额日期早于分析日期，账户估值可能过期');
