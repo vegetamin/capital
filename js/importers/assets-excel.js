@@ -41,43 +41,92 @@ function parseAssetWorkbook(wb,name){
  const unique=new Set();for(const item of best.items){let key=item.category+'\u001f'+item.name;if(unique.has(key))throw Error('同一分类出现重名账户：'+item.name+'。为避免重复计算，请先调整 Excel。');unique.add(key)}
  return best;
 }
+const ASSET_IMPORT_MODES={review:'仅核对，不修改',add:'只新增未匹配账户',sync:'更新匹配账户余额并新增账户'};
+const canonicalAccountName=s=>String(s??'').normalize('NFKC').replace(/\s+/g,'').toLowerCase();
+function assetTargetBalance(item){return item.kind==='liability'?-item.amount:item.amount}
+function assetMatch(item){return state.accounts.filter(a=>canonicalAccountName(a.name)===canonicalAccountName(item.name))}
+function assetLinkedTransactions(a){return state.transactions.filter(t=>t.status!=='void'&&(t.entries||[]).some(e=>e.accountId===a.id)).length}
+function chooseAssetImportMode(){if(!assetExcelPending)return;refreshAssetPreview()}
+function refreshAssetPreview(){
+ const p=assetExcelPending;if(!p)return;const mode=$('assetExcelMode')?.value||'review',commit=$('assetExcelCommit'),area=$('assetExcelPreview');
+ const rows=p.items.map(item=>{
+  const hits=assetMatch(item);const a=hits[0];let op='',difference=null;
+  if(hits.length>1)op='⚠ 同名多账户，禁止自动处理';
+  else if(!a)op=mode==='review'?'仅核对': '新增账户';
+  else{
+   difference=assetTargetBalance(item)-acctBalance(a.id);
+   const linked=assetLinkedTransactions(a);
+   const compatible=(a.kind===item.kind)||(a.kind==='cash'&&item.name==='现金'&&item.kind==='bank');
+   if(!compatible)op='⚠ 账户性质冲突，人工核实';
+   else if(linked&&difference)op=`⚠ 有${linked}笔关联流水，禁止自动覆盖`;
+   else if(!difference)op='余额一致';
+   else op=mode==='sync'?'更新当前余额（留审计）':'现有账户不更新';
+  }
+  return `<tr><td>${esc(item.category)}</td><td>${esc(item.name)}</td><td>${amt(item.amount)}</td><td>${a?amt(acctBalance(a.id)):'—'}</td><td>${difference===null?'—':amt(difference)}</td><td>${esc(op)}</td></tr>`
+ }).join('');
+ const recRows=p.reconcile.map(x=>`<tr><td>${esc(x.category)}</td><td>${amt(x.total)}</td><td>${amt(x.detail)}</td><td>${amt(x.diff)}</td></tr>`).join('');
+ const existing=state.accounts.filter(a=>!a.auditExcluded);
+ const expectedGross=p.items.filter(x=>x.kind!=='liability').reduce((n,x)=>n+x.amount,0);
+ const expectedDebt=p.items.filter(x=>x.kind==='liability').reduce((n,x)=>n+x.amount,0);
+ const expectedNet=expectedGross-expectedDebt;
+ const sourceGross=p.sourceTotals['实际资产'];
+ const totalsText=`<p><b>Excel明细总资产：</b>${amt(expectedGross)}；<b>负债：</b>${amt(expectedDebt)}；<b>标准净资产：</b>${amt(expectedNet)}。${sourceGross!==undefined?`<br>Excel“实际资产”字段：${amt(sourceGross)}（字段含义可能是总资产，需核对公式）。`:''}</p>`;
+ const invalid=p.reconcile.filter(x=>x.diff!==0);
+ const eligible=p.items.filter(item=>{
+  const hits=assetMatch(item);if(!hits.length)return mode!=='review';if(mode!=='sync'||hits.length!==1)return false;
+  const a=hits[0];return (a.kind===item.kind||(a.kind==='cash'&&item.name==='现金'&&item.kind==='bank'))&&!assetLinkedTransactions(a)&&assetTargetBalance(item)!==acctBalance(a.id);
+ });
+ area.innerHTML=`<p><b>文件：</b>${esc(p.fileName)}　<b>工作表：</b>${esc(p.sheetName)}　<b>余额日期：</b>${esc(p.date)}</p>${totalsText}<div class="notice">历史账户不会因名称相同而自动跳过且假装完成更新。更新只允许无关联流水、性质一致且唯一匹配的账户；有交易或重名冲突的账户必须单独核对。</div>${invalid.length?`<div class="notice"><b>分类小计与明细存在差异：</b>${esc(invalid.map(x=>x.category+' '+yuan(x.diff)+'元').join('；'))}。停止自动入账，先核对Excel。</div>`:''}<h3>Excel小计核对</h3>${table(['类别','原表小计','明细合计','差异'],recRows)}<h3>逐账户差异</h3>${table(['分类','账户','本次Excel余额','系统余额','差额','计划操作'],rows)}<p>当前模式：${esc(ASSET_IMPORT_MODES[mode])}；可安全执行 ${eligible.length} 项。存在旧账户但不在本次Excel中的记录不会自动删除或排除。</p>`;
+ commit.disabled=mode==='review'||eligible.length===0||invalid.length>0;
+ commit.textContent=mode==='sync'?'确认同步账户余额':mode==='add'?'确认新增账户':'仅核对（不写入）';
+}
 async function previewAssetExcel(event){
  assetExcelPending=null;const commit=$('assetExcelCommit'),area=$('assetExcelPreview');commit.disabled=true;
  const file=event.target.files?.[0];if(!file)return;
  try{
   if(!/\.(xlsx|xls)$/i.test(file.name))throw Error('请选择 .xlsx 或 .xls 文件');
-  if(!globalThis.XLSX)throw Error('Excel 解析组件尚未加载，请确认网络连接并刷新网页');
+  if(!globalThis.XLSX)throw Error('Excel 解析组件尚未加载');
   const workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
   const parsed=parseAssetWorkbook(workbook,file.name);
-  // 保守处理：同分类、同名称的账户不自动覆盖；有余额和历史流水都不会篡改。
-  // 识别所有同名旧账户：即使旧账户没有 assetSourceCategory，也不能当成新资产再次新增。
-  const oldByName=new Map();for(const a of state.accounts){const key=String(a.name).trim().replace(/\s+/g,'').toLowerCase();if(!oldByName.has(key))oldByName.set(key,[]);oldByName.get(key).push(a)}
-  parsed.items=parsed.items.map(item=>{const matches=oldByName.get(item.name.replace(/\s+/g,'').toLowerCase())||[];return {...item,exists:matches.length>0,existingCount:matches.length}});
-  // 分类合计为资产表中的权威小计；明细有不在小计内的项目时，明确展示，不静默并入。
   parsed.reconcile=Object.entries(parsed.categorySums).map(([category,total])=>{const detail=parsed.items.filter(x=>x.category===category).reduce((n,x)=>n+x.amount,0);return {category,total,detail,diff:detail-total}});
-  const activeCategories=['灵活取用','定期','投资','债权'];const sourceGross=activeCategories.reduce((n,k)=>n+(parsed.categorySums[k]||0),0);const liability=parsed.categorySums['负债']||0;
-  const extra=parsed.reconcile.filter(x=>x.diff!==0);const sourceNet=sourceGross-liability;
-  parsed.sourceGross=sourceGross;parsed.sourceNet=sourceNet;parsed.extra=extra;
+  if(parsed.items.some(item=>assetMatch(item).length>1))parsed.hasAmbiguous=true;
   assetExcelPending=parsed;
-  const rows=parsed.items.map(x=>`<tr><td>${esc(x.category)}</td><td>${esc(x.name)}</td><td>${amt(x.amount)}</td><td>${x.exists?'同名账户已存在：跳过':'待新增'}</td></tr>`).join('');
-  const recRows=parsed.reconcile.map(x=>`<tr><td>${esc(x.category)}</td><td>${amt(x.total)}</td><td>${amt(x.detail)}</td><td>${amt(x.diff)}</td></tr>`).join('');
-  const suppliedGross=parsed.sourceTotals['实际资产'];
-  const discrepancy=suppliedGross===undefined?'未找到“实际资产”汇总字段':`Excel“实际资产” ${amt(suppliedGross)}；分类合计 ${amt(sourceGross)}；差额 ${amt(sourceGross-suppliedGross)}`;
-  const extraMsg=extra.length?`<div class="notice"><b>重要：分类小计与明细不一致。</b> ${esc(extra.map(x=>x.category+'：明细较小计多'+yuan(x.diff)+'元').join('；'))}。这可能意味着有未纳入小计的项目（如黄金），需确认后决定统计口径。不会把 Excel 的“实际资产”直接当作净资产。</div>`:'';
-  const existingWarnings=parsed.items.some(x=>x.exists)?'<div class="notice">发现现有同名账户。旧导入记录可能与本文件重复。系统不修改这些旧账户，若资产总额异常，请先在数据中心备份并核查旧账户。</div>':'';
-  area.innerHTML=`<p><b>文件：</b>${esc(file.name)}　<b>工作表：</b>${esc(parsed.sheetName)}　<b>余额日期：</b>${esc(parsed.date)}</p><p><b>资产对账：</b>${discrepancy}。<br><b>标准净资产（按分类小计、扣除负债）：</b>${amt(sourceNet)}；<b>负债：</b>${amt(liability)}。注意“实际资产”是原表标签，不保证为标准净资产。</p>${extraMsg}${existingWarnings}<h3>分类汇总与明细核对</h3>${table(['类别','原表小计','明细合计','差异'],recRows)}<h3>拟导入账户</h3>${table(['分类','账户','余额','操作'],rows)}${parsed.skipped.length?`<p>跳过 ${parsed.skipped.length} 行：${esc(parsed.skipped.slice(0,6).join('；'))}</p>`:''}<p>共识别 ${parsed.items.length} 项，将新增 ${parsed.items.filter(x=>!x.exists).length} 项。所有账户必须与实际余额核对，AI 不应直接信任存在差异的资产总数。</p>`;
-  commit.disabled=!parsed.items.some(x=>!x.exists)||parsed.extra.length>0; // 小计不一致先停用导入，避免错误入账
+  $('assetExcelMode').value='review';refreshAssetPreview();
  }catch(e){area.textContent='资产Excel解析失败：'+e.message}
 }
 async function commitAssetExcel(){
- const p=assetExcelPending;if(!p)return;if(p.extra?.length){alert('资产明细与分类小计不一致，请先核对原表后再导入。');return;}
- const fresh=p.items.filter(x=>!state.accounts.some(a=>a.name.trim().replace(/\s+/g,'').toLowerCase()===x.name.trim().replace(/\s+/g,'').toLowerCase()));
- if(!fresh.length)return alert('没有需要新增的账户');
- if(!confirm(`将根据 ${p.date} 的账目新增 ${fresh.length} 个资产账户。\n不会修改既有账户、交易、持仓，也不会自动合并重名。\n若账目与现有持仓重叠，请取消并核对。\n确认导入？`))return;
- const before=state.accounts.length;
+ const p=assetExcelPending,mode=$('assetExcelMode')?.value;if(!p||mode==='review')return;
+ if(p.reconcile.some(x=>x.diff!==0))return alert('分类小计与明细不一致，暂停导入。');
+ const proposed=[];const blocked=[];
+ for(const item of p.items){
+  const hits=assetMatch(item);
+  if(!hits.length){proposed.push({type:'add',item});continue}
+  if(mode!=='sync')continue;
+  if(hits.length!==1){blocked.push(item.name+'（同名多账户）');continue}
+  const a=hits[0];const target=assetTargetBalance(item),delta=target-acctBalance(a.id);
+  if(!delta)continue;
+  if(a.kind!==item.kind&&!(a.kind==='cash'&&item.name==='现金'&&item.kind==='bank')){blocked.push(item.name+'（账户类型不同）');continue}
+  if(assetLinkedTransactions(a)){blocked.push(item.name+'（关联流水，需人工对账）');continue}
+  proposed.push({type:'update',item,account:a,oldBalance:acctBalance(a.id),target,delta});
+ }
+ if(blocked.length)return alert('部分账户不能自动更新：'+blocked.join('；')+'。请到资产中心单独对账后再同步。未修改任何数据。');
+ if(!proposed.length)return alert('没有可执行的新增或更新');
+ const added=proposed.filter(x=>x.type==='add').length,updated=proposed.length-added;
+ if(!confirm(`依据 ${p.date} 的Excel操作：新增 ${added} 个，更新 ${updated} 个。\n余额更新会修改无流水账户的期初基准，并保留旧余额及变更审计。\n系统将先自动下载完整备份。继续？`))return;
+ // 先下载完整备份；下载不意味着已经保存到用户磁盘，页面明确提醒。
+ download('Alice-同步资产前备份-'+today()+'.json',JSON.stringify({app:'Alice Life Capital OS',exportedAt:now(),data:state},null,2),'application/json');
+ const snapshot=structuredClone(state),batch=uid();
  try{
-  const batch=uid();for(const item of fresh){state.accounts.push({id:uid(),name:item.name,institution:'',kind:item.kind,opening:item.kind==='liability'?-item.amount:item.amount,asOf:item.date,assetSourceCategory:item.category,assetImportBatch:batch,assetSourceFile:p.fileName,assetSourceSheet:p.sheetName,assetSourceRow:item.sourceRow,assetSourceColumn:item.sourceColumn})}
-  state.imports.push({id:batch,type:'asset-excel',fileName:p.fileName,createdAt:now(),sheetName:p.sheetName,asOf:p.date,count:fresh.length,skipped:p.skipped.length});
-  await save('asset-excel-import',p.fileName+' '+fresh.length+'项');assetExcelPending=null;alert('已导入 '+fresh.length+' 个账户；请与 Excel 账面净资产核对。');
- }catch(e){state.accounts.splice(before);alert('导入失败：'+e.message+'。请检查数据中心的账户记录。')}
+  for(const change of proposed){const x=change.item;
+   if(change.type==='add')state.accounts.push({id:uid(),name:x.name,institution:'',kind:x.kind,opening:assetTargetBalance(x),asOf:x.date,assetSourceCategory:x.category,assetImportBatch:batch,assetSourceFile:p.fileName,assetSourceSheet:p.sheetName,assetSourceRow:x.sourceRow,assetSourceColumn:x.sourceColumn});
+   else{const a=change.account;
+    a.balanceAuditHistory=a.balanceAuditHistory||[];
+    a.balanceAuditHistory.push({at:now(),from:change.oldBalance,to:change.target,delta:change.delta,fromDate:a.asOf||null,toDate:p.date,source:p.fileName,sheet:p.sheetName,row:x.sourceRow,batch});
+    a.opening+=change.delta;a.asOf=x.date;a.assetImportBatch=batch;a.assetSourceFile=p.fileName;a.assetSourceSheet=p.sheetName;a.assetSourceRow=x.sourceRow;a.assetSourceColumn=x.sourceColumn;
+   }
+  }
+  state.imports.push({id:batch,type:'asset-excel-reconciled',mode,fileName:p.fileName,createdAt:now(),sheetName:p.sheetName,asOf:p.date,count:proposed.length,added,updated,sourceNet:p.items.filter(x=>x.kind!=='liability').reduce((n,x)=>n+x.amount,0)-p.items.filter(x=>x.kind==='liability').reduce((n,x)=>n+x.amount,0)});
+  await save('asset-excel-sync',p.fileName+'：新增'+added+'、更新'+updated);
+  assetExcelPending=null;alert('同步完成：新增'+added+'、更新'+updated+'。请检查首页总资产、净资产，并继续核对未匹配或待核账户。');
+ }catch(e){state=snapshot;alert('同步失败，已回滚当前内存状态：'+e.message)}
 }
