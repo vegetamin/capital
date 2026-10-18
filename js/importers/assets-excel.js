@@ -118,11 +118,11 @@ async function commitAssetExcel(){
  const snapshot=structuredClone(state),batch=uid();
  try{
   for(const change of proposed){const x=change.item;
-   if(change.type==='add')state.accounts.push({id:uid(),name:x.name,institution:'',kind:x.kind,opening:assetTargetBalance(x),asOf:x.date,assetSourceCategory:x.category,assetImportBatch:batch,assetSourceFile:p.fileName,assetSourceSheet:p.sheetName,assetSourceRow:x.sourceRow,assetSourceColumn:x.sourceColumn});
+   if(change.type==='add')state.accounts.push({id:uid(),name:x.name,institution:'',kind:x.kind,opening:assetTargetBalance(x),asOf:x.date,assetSnapshotDate:x.date,assetSourceCategory:x.category,assetImportBatch:batch,assetSourceFile:p.fileName,assetSourceSheet:p.sheetName,assetSourceRow:x.sourceRow,assetSourceColumn:x.sourceColumn});
    else{const a=change.account;
     a.balanceAuditHistory=a.balanceAuditHistory||[];
     a.balanceAuditHistory.push({at:now(),from:change.oldBalance,to:change.target,delta:change.delta,fromDate:a.asOf||null,toDate:p.date,source:p.fileName,sheet:p.sheetName,row:x.sourceRow,batch});
-    a.opening+=change.delta;a.asOf=x.date;a.assetImportBatch=batch;a.assetSourceFile=p.fileName;a.assetSourceSheet=p.sheetName;a.assetSourceRow=x.sourceRow;a.assetSourceColumn=x.sourceColumn;
+    a.opening+=change.delta;a.asOf=x.date;a.assetSnapshotDate=x.date;a.assetImportBatch=batch;a.assetSourceFile=p.fileName;a.assetSourceSheet=p.sheetName;a.assetSourceRow=x.sourceRow;a.assetSourceColumn=x.sourceColumn;
    }
   }
   state.imports.push({id:batch,type:'asset-excel-reconciled',mode,fileName:p.fileName,createdAt:now(),sheetName:p.sheetName,asOf:p.date,count:proposed.length,added,updated,sourceNet:p.items.filter(x=>x.kind!=='liability').reduce((n,x)=>n+x.amount,0)-p.items.filter(x=>x.kind==='liability').reduce((n,x)=>n+x.amount,0)});

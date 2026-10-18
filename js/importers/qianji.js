@@ -39,7 +39,15 @@ async function previewCSV(e){preview=null;$('csvCommit').disabled=true;const fil
   const existing=new Set(state.transactions.map(t=>t.importFingerprint).filter(Boolean));const seen=new Set();
   const newRows=valid.filter(x=>{if(existing.has(x.fingerprint)||seen.has(x.fingerprint))return false;seen.add(x.fingerprint);return true});
   preview={fileName:file.name,valid:newRows,ignored,duplicate:valid.length-newRows.length};
-  $('csvPreview').innerHTML=`可导入 <b>${newRows.length}</b> 笔；重复 <b>${preview.duplicate}</b> 笔；不支持/无效 <b>${ignored.length}</b> 笔。${ignored.length?'前5条：'+esc(ignored.slice(0,5).map(i=>i.line+'行 '+i.reason).join('；')):''}<br>请核对导入账户与账单账户是否一致。`;
-  $('csvCommit').disabled=!newRows.length||!$('csvAccount').value;
+  $('csvPreview').innerHTML=`可导入 <b>${newRows.length}</b> 笔；重复 <b>${preview.duplicate}</b> 笔；不支持/无效 <b>${ignored.length}</b> 笔。${ignored.length?'前5条：'+esc(ignored.slice(0,5).map(i=>i.line+'行 '+i.reason).join('；')):''}<br>该账单只进入消费和收入统计，不会改变任何资产账户余额。`;
+  $('csvCommit').disabled=!newRows.length;
 }catch(ex){$('csvPreview').textContent='解析失败：'+ex.message}}
-async function commitCSV(){if(!preview||!preview.valid.length)return;const acc=$('csvAccount').value;if(!state.accounts.some(a=>a.id===acc))return alert('请选择有效账户');if(!confirm(`即将导入 ${preview.valid.length} 笔收支到账户，可能与手工流水重复，确认？`))return;const batch=uid(),items=preview.valid.map(x=>({id:uid(),createdAt:now(),status:'posted',type:x.type,date:x.date,accountId:acc,category:x.category,subcategory:x.subcategory,description:x.note,source:'钱迹CSV',importFingerprint:x.fingerprint,importBatch:batch,entries:[{accountId:acc,amount:x.type==='income'?x.amount:-x.amount}]}));state.transactions.push(...items);state.imports.push({id:batch,fileName:preview.fileName,createdAt:now(),count:items.length,ignored:preview.ignored.length,duplicate:preview.duplicate});preview=null;await save('csv-import',batch+' '+items.length+'笔');alert('导入完成。请到资产账户核对余额。')}
+async function commitCSV(){
+ if(!preview||!preview.valid.length)return;
+ if(!confirm(`将导入 ${preview.valid.length} 笔钱迹收支明细，仅用于消费和收入分析。不会修改任何银行或现金账户余额。确认？`))return;
+ const batch=uid();
+ const items=preview.valid.map(x=>({id:uid(),createdAt:now(),status:'posted',type:x.type,date:x.date,accountId:null,sourceAccountName:x.account||'',category:x.category,subcategory:x.subcategory,description:x.note,source:'钱迹账本',qianjiImported:true,importAmountCents:x.amount,importFingerprint:x.fingerprint,importBatch:batch,entries:[]}));
+ state.transactions.push(...items);
+ state.imports.push({id:batch,fileName:preview.fileName,createdAt:now(),count:items.length,ignored:preview.ignored.length,duplicate:preview.duplicate,mode:'analytics-only'});
+ preview=null;await save('qianji-import',batch+' '+items.length+'笔（不影响账户余额）');alert('导入完成：已添加消费/收入记录，不会改变资产账户余额。');
+}
