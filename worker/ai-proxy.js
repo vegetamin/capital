@@ -42,11 +42,12 @@ export default {
   try{
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),110000);
    let upstream;
-   try{upstream=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+env[keyName],'Content-Type':'application/json'},body:JSON.stringify({model:env[modelName]||defaultModel,messages,max_tokens:2600}),signal:controller.signal})}finally{clearTimeout(timeout)}
+   try{upstream=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+env[keyName],'Content-Type':'application/json'},body:JSON.stringify({model:env[modelName]||defaultModel,messages,max_tokens:6000}),signal:controller.signal})}finally{clearTimeout(timeout)}
    if(!upstream.ok)return output({error:'上游AI请求失败：HTTP '+upstream.status+'。请检查服务商密钥、额度和模型。'},502);
    const d=await upstream.json();const reply=d.choices?.[0]?.message?.content;
    if(typeof reply!=='string'||!reply.trim())return output({error:'模型未返回文字回复'},502);
-   return output(path==='/chat'?{reply,provider}:{analysis:reply,provider});
+   const finishReason=d.choices?.[0]?.finish_reason||'unknown';
+   return output(path==='/chat'?{reply,provider,finishReason}:{analysis:reply,provider,finishReason});
   }catch(e){return output({error:'AI请求异常：'+(e?.name==='AbortError'?'请求超时':'网络或服务商错误')},502)}
  }
 };
