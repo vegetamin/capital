@@ -28,3 +28,31 @@
 
 /* Locally extracted AI attachments */
 .alice-attachment-tools{margin:8px 0 5px}.alice-file-action{display:inline-block;cursor:pointer;border:1px solid #bdd1c2;border-radius:9px;padding:8px 12px;color:#235d40;background:#f3faf5;font-size:12px}.alice-attachments{margin-top:7px;display:flex;flex-direction:column;gap:6px}.alice-attachment{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 10px;border:1px solid #d4e4d8;border-radius:8px;background:#f6faf7;font-size:12px}.alice-attachment span{min-width:0;overflow-wrap:anywhere}.alice-attachment button{flex:0 0 auto;padding:4px 8px}.alice-attached-label{display:inline-block;margin:8px 5px 0 0;border:1px solid #b5cdb9;border-radius:6px;padding:2px 7px;background:#ecf6ef;font-size:12px}.alice-chat-composer{max-height:55vh;overflow:auto}
+
+/* Alice 2.0 — reading-first AI conversation, without changing stored messages */
+.ai-columns.alice-ai-workspace{grid-template-columns:minmax(0,1fr);align-items:start}
+.alice-ai-workspace .alice-chat-panel{grid-row:1;min-height:680px;height:min(85vh,1050px);max-height:none}
+.alice-ai-workspace .alice-ai-context{grid-row:2}
+.alice-ai-workspace .alice-chat-messages{min-height:0;overflow-y:auto;padding:20px 22px;gap:18px}
+.alice-ai-workspace .alice-chat-ai{width:100%;max-width:100%;padding:22px clamp(16px,3vw,36px)}
+.alice-ai-workspace .alice-chat-user{max-width:min(85%,780px)}
+.alice-ai-workspace .alice-chat-body{white-space:pre-wrap;font-size:15px;line-height:1.85}
+.alice-ai-workspace .alice-chat-ai .alice-chat-body{white-space:normal;line-height:1.85}
+.alice-chat-body h2,.alice-chat-body h3,.alice-chat-body h4,.alice-chat-body h5{color:#193e2b;font-weight:700;line-height:1.5;margin:1.35em 0 .65em}
+.alice-chat-body h2{font-size:1.4em}.alice-chat-body h3{font-size:1.23em}.alice-chat-body h4{font-size:1.12em}
+.alice-chat-body p{color:inherit;margin:.7em 0}.alice-chat-body strong{font-weight:750;color:#153b27}
+.alice-chat-body ul,.alice-chat-body ol{padding-left:1.8em;margin:.75em 0}.alice-chat-body li{margin:.4em 0}
+.alice-chat-body blockquote{margin:1em 0;padding:2px 16px;border-left:3px solid #80a98b;background:#f1f7f2;border-radius:0 8px 8px 0}
+.alice-chat-body blockquote p{margin:.55em 0}
+.alice-chat-body hr{margin:1.35em 0;border:0;border-top:1px solid #dae6dd}
+.alice-md-tablewrap{max-width:100%;overflow-x:auto;margin:1em 0;border:1px solid #d6e5da;border-radius:10px}
+.alice-chat-body .alice-md-tablewrap table{width:100%;min-width:450px;border-collapse:collapse;font-size:14px}
+.alice-chat-body .alice-md-tablewrap th,.alice-chat-body .alice-md-tablewrap td{padding:10px 13px;border-bottom:1px solid #e3eae5;white-space:normal;overflow-wrap:break-word}
+.alice-chat-body .alice-md-tablewrap th{background:#edf5ef;color:#244f35;font-weight:700;position:static}
+.alice-chat-body .alice-md-tablewrap tr:nth-child(even) td{background:#fafcfb}
+.alice-md-code{padding:14px;background:#eff4f0;overflow-x:auto;border-radius:8px;white-space:pre;line-height:1.55}
+.alice-chat-body :not(pre)>code{padding:2px 5px;background:#edf2ee;border-radius:5px;font-size:.91em;overflow-wrap:anywhere}
+.alice-ai-workspace.alice-ai-expanded{position:fixed;inset:0;z-index:100;background:#f4f7f4;overflow:auto;padding:14px;display:block}
+.alice-ai-workspace.alice-ai-expanded .alice-chat-panel{height:calc(100dvh - 28px);max-width:1500px;margin:auto}
+.alice-ai-workspace.alice-ai-expanded .alice-ai-context{display:none}
+@media(max-width:800px){.alice-ai-workspace .alice-chat-panel{height:80dvh;min-height:540px}.alice-ai-workspace .alice-chat-messages{padding:10px}.alice-ai-workspace .alice-chat-ai{padding:14px}.alice-ai-workspace .alice-chat-user{max-width:95%}.alice-ai-workspace.alice-ai-expanded{padding:0}.alice-ai-workspace.alice-ai-expanded .alice-chat-panel{height:100dvh;border-radius:0}}
