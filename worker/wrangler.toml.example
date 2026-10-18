@@ -1,0 +1,8 @@
+name = "alice-os-ai-proxy"
+main = "ai-proxy.js"
+compatibility_date = "2026-10-18"
+# Configure secrets via wrangler secret put OPENAI_API_KEY and ALICE_ACCESS_TOKEN
+# Configure ALLOWED_ORIGIN as your exact GitHub Pages HTTPS origin (no trailing slash)
+[vars]
+ALLOWED_ORIGIN = "https://YOURNAME.github.io"
+OPENAI_MODEL = "gpt-4.1-mini"
