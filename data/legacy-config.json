@@ -1,0 +1,9 @@
+{
+  "cashTarget": 30000,
+  "riskTargetMin": 0.05,
+  "riskTargetMax": 0.1,
+  "monthlySalary": 0,
+  "salaryDelayedMonths": 0,
+  "phoneRepayment": 0,
+  "version": "2.2.0"
+}
