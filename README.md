@@ -20,7 +20,7 @@
 - `js/modules/investment.js`：投资持仓及交易决策。
 - `js/modules/policy.js`：政策与预算。
 - `js/modules/data-center.js`：JSON备份与恢复。
-- `js/importers/qianji.js`：钱迹 CSV 解析、预览与批次导入。
+- `js/importers/qianji.js`：钱迹 Excel/CSV 解析、预览与批次导入。
 - `legacy/capital-main/`：原始 2.2.0 网站源代码，含旧版阅读、研究、周报等模块，供迁移参考；不是 2.0 活跃模块。
 
 ## 注意事项
@@ -39,3 +39,10 @@
 ## 验证
 
 `node --check js/core/state.js` 等脚本均可单独做语法验证。`tests/structure-check.py` 对资源引用和文件结构作静态验证。
+
+## 修复记录（2026-10-18）
+
+- 修复将 `.xlsx` 误以文本交给 CSV 解析器造成的「CSV 存在未闭合的引号」。
+- 钱迹导入支持 `.xlsx`、`.xls`、`.csv`，自动定位包含核心字段的工作表与表头。
+- Excel 依赖 SheetJS 官方 CDN，离线时需连接网络才能导入 Excel。
+- 导入前请核对账户，保留原始钱迹文件；未确认导入时不写入数据。
