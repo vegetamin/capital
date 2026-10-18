@@ -64,3 +64,12 @@ AI 财务分析页面现支持手动配置 OpenAI API Key、模型、连接测�
 
 ### 多 AI 引擎支持
 AI 财务分析现在支持 OpenAI、DeepSeek、通义千问、Kimi、智谱 GLM 及自定义 OpenAI Chat Completions 兼容接口。不同引擎分别管理密钥/模型/API 地址。详细配置见 `docs/AI_ANALYSIS.md`。
+
+## 2026-10 AI 多轮财务对话更新
+
+- 「AI 财务分析」现有连续对话、财务诊断、快捷问题、聊天记录本地保存及导出。
+- 每次发送问题时，读取当前选定范围的最新财务摘要；同时将最近最多16条已保存对话作为上下文。摘要默认不发送逐笔消费或商户备注；发送前可展开预览并勾选同意。
+- 旧版 Worker 仅实现 `/analyze`。要使用对话功能，**必须将 `worker/ai-proxy.js` 在 Cloudflare Workers 同步替换并部署**，新版增加 `/chat`，原 `/analyze` 保持兼容。现有 DeepSeek Secret、访问口令和 ALLOWED_ORIGIN 可以继续使用。
+- Worker 使用 `ALLOWED_ORIGIN` 精确限制来源，同时必须自行设置访问口令和限制使用量；一个由用户手动输入的口令并不等于完善的用户认证。浏览器直连密钥仍有泄露风险。
+- 对话文本保存在 `localStorage`，和财务数据库分离，**不会被账户 JSON 备份自动包含**。可在 AI 页面导出对话 JSON 或清空。
+- 所有分析是辅助建议，不能代替原始账本核对或自动执行证券交易。
