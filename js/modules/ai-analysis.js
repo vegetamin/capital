@@ -73,6 +73,26 @@ function aiSnapshot(scope='both'){
    };
    if(w.conflicts.length)out.dataQuality.push('存在未解决的财富事实冲突；冲突解决前不得给出具体买入金额。');
  }
+ if(typeof AliceAllocation!=='undefined'){
+   const a=AliceAllocation.build(state,{balanceOf:x=>acctBalance(x.id),holdingValue:h=>Math.round(h.qty*(h.priceUnit??h.priceCents*100)/(h.scale*100)),now:new Date(date+'T12:00:00')});
+   out.allocationAdvice={
+     policyConfirmed:a.policy.confirmed,riskProfile:a.policy.riskProfile,horizonYears:a.policy.horizonYears,driftTolerance:a.policy.driftTolerance,
+     targetAllocation:a.policy.targets,currentAllocation:Object.fromEntries(a.rows.map(x=>[x.id,{amount:aiRound(x.currentCents),percent:Number(x.currentPercent.toFixed(2)),targetPercent:x.targetPercent,driftPercent:Number(x.driftPercent.toFixed(2))}])),
+     configurableAmount:aiRound(a.configurableCents),cashProtectionGap:aiRound(a.cashGapCents),blockers:a.blockers,
+     recommendedSequence:a.actions.map(x=>({type:x.kind,title:x.title,amount:aiRound(x.amountCents||0),reason:x.detail}))
+   };
+ }
+ if(typeof AliceMarket!=='undefined'){
+   const m=AliceMarket.assess(state.marketIntelligence?.snapshot||{},new Date());
+   out.notes.push('市场态势只能调整分批和复核节奏，不能改写目标配置、推荐具体证券或触发自动交易；过期观测不得作为当前事实');
+   out.marketContext={
+     capturedAt:m.snapshot.asOf,regime:m.regime,label:m.label,summary:m.summary,coveragePercent:m.coverage,freshnessPercent:m.freshness,
+     executionOverlay:m.overlay,
+     observations:m.snapshot.observations.map(x=>({group:x.group,label:x.label,value:x.value,unit:x.unit,change:x.change,signal:x.signal,cadence:x.cadence,observedAt:x.observedAt,source:x.source,stale:x.stale})),
+     events:m.snapshot.events
+   };
+   if(m.regime==='insufficient')out.dataQuality.push('市场态势证据不足或过期；AI不得据此给出方向性交易结论。');
+ }
  return out;
 }
 function aiLocalReport(s){const lines=[`Alice Life Capital OS｜本地财务分析`, `分析日期：${s.asOf}；范围：${s.scope==='both'?'资产与消费':s.scope==='assets'?'资产':'消费'}`];

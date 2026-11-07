@@ -26,6 +26,12 @@ GitHub Pages 无服务端，不得将 API Key 放进 GitHub 仓库、HTML、JS �
 - 资产账户和证券持仓的重复计量尚须人工核对；报告会提示此项风险。
 - 这是一套真实可运行的本地统计与可选 AI 接入代码，部署后的 API 调用仍需用户配置 Worker 并验证。
 
+## 市场态势连接
+
+同一个 Worker 还提供 `POST /market`。配置 Secret `FRED_API_KEY` 后更新宏观、利率、信用和波动指标；配置 `TWELVE_DATA_API_KEY` 后更新 `MARKET_SYMBOLS` 中的股票、行业与商品代理。行情是否实时、延迟或日终取决于市场、套餐和授权；ETF/现货代理不等于交易所期货连续合约。需要实时期货或逐笔数据时，应把已授权服务规范化为 `ALICE-MARKET-1`，由固定的 `MARKET_FEED_URL` 读取，禁止让浏览器提交任意上游 URL。
+
+市场页面的 Worker 地址和访问口令保存在 sessionStorage。刷新失败时保留旧快照并标记错误；旧数据达到其频率阈值后会显示过期。市场快照可进入 AI 摘要与配置草案，但只能影响分批和复核节奏。
+
 
 ## 页面内 OpenAI API Key 配置（新增）
 1. 进入「AI 财务分析」→「连接 ChatGPT」→ 选择「浏览器直接连接」。
