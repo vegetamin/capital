@@ -1,0 +1,23 @@
+/* Alice Capital OS: versioned wealth facts, fund purposes and decision guards. */
+(function(root,factory){
+  const api=factory();
+  if(typeof module==='object'&&module.exports)module.exports=api;
+  root.AliceWealth=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  const id=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'wealth-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+  const iso=()=>new Date().toISOString();
+  const copy=x=>JSON.parse(JSON.stringify(x));
+  function ensure(state){if(!state||typeof state!=='object')throw Error('财富状态不可用');if(!Array.isArray(state.wealthFacts))state.wealthFacts=[];if(!Array.isArray(state.fundPurposes))state.fundPurposes=[];if(!Array.isArray(state.decisions))state.decisions=[];return state}
+  function activeFacts(state){ensure(state);return state.wealthFacts.filter(x=>x.status!=='superseded').sort((a,b)=>String(b.confirmedAt||b.updatedAt||'').localeCompare(String(a.confirmedAt||a.updatedAt||'')))}
+  function upsertFact(state,input){ensure(state);const key=String(input.key||input.label||'').trim().toLowerCase(),label=String(input.label||input.key||'').trim(),value=String(input.value??'').trim();if(!key||!label||!value)throw Error('事实名称和值不能为空');const previous=state.wealthFacts.find(x=>x.key===key&&x.status!=='superseded');if(previous)previous.status='superseded';const record={id:id(),key,label,value,note:String(input.note||'').trim(),source:'user',status:'active',verification:'confirmed',confirmedAt:iso(),supersedes:previous?.id||null};state.wealthFacts.push(record);return record}
+  function flagFactConflict(state,factId,note='需要重新核对'){ensure(state);const fact=state.wealthFacts.find(x=>x.id===factId);if(!fact)throw Error('未找到事实');fact.verification='conflict';fact.note=String(note);fact.updatedAt=iso();return fact}
+  function savePurpose(state,input){ensure(state);const amountCents=Number(input.amountCents||0),horizonMonths=Number(input.horizonMonths||0);if(!String(input.name||'').trim())throw Error('资金用途名称不能为空');if(!Number.isSafeInteger(amountCents)||amountCents<0)throw Error('资金金额无效');if(!Number.isFinite(horizonMonths)||horizonMonths<0)throw Error('使用期限无效');let row=input.id&&state.fundPurposes.find(x=>x.id===input.id);if(!row){row={id:id(),createdAt:iso()};state.fundPurposes.push(row)}Object.assign(row,{name:String(input.name).trim(),amountCents,horizonMonths,kind:String(input.kind||'planned'),locked:input.locked!==false,status:'active',note:String(input.note||'').trim(),updatedAt:iso()});return row}
+  function pendingOrders(state){ensure(state);return state.decisions.filter(x=>x.status==='submitted')}
+  function reservedCash(state){return pendingOrders(state).reduce((n,x)=>n+Number(x.reservedCents||0),0)}
+  function contextRefs(state){ensure(state);return {factIds:activeFacts(state).map(x=>x.id),purposeIds:state.fundPurposes.filter(x=>x.status==='active').map(x=>x.id),decisionIds:state.decisions.filter(x=>['approved','submitted','review'].includes(x.status)).map(x=>x.id),capturedAt:iso()}}
+  function snapshot(state,{cashCents=0,now=new Date()}={}){ensure(state);const facts=activeFacts(state),purposes=state.fundPurposes.filter(x=>x.status==='active'),orders=pendingOrders(state),assignedCents=purposes.reduce((n,x)=>n+Number(x.amountCents||0),0),reservedCents=reservedCash(state),dueReviews=state.decisions.filter(x=>x.reviewAt&&!x.reviewedAt&&new Date(x.reviewAt+'T23:59:59')<=now);return {facts:copy(facts),purposes:copy(purposes),pendingOrders:copy(orders),assignedCents,reservedCents,unassignedCashCents:Math.max(0,Number(cashCents||0)-assignedCents-reservedCents),conflicts:facts.filter(x=>x.verification==='conflict'),dueReviews:copy(dueReviews)}}
+  function adviceGuard(state,{cashCents=0,purposeId='',horizonMonths=null,now=new Date()}={}){const s=snapshot(state,{cashCents,now}),purpose=s.purposes.find(x=>x.id===purposeId),horizon=horizonMonths===null?(purpose?.horizonMonths??null):Number(horizonMonths),blockers=[];if(s.conflicts.length)blockers.push('存在未解决的财富事实冲突');if(!purpose)blockers.push('尚未选择这笔资金的用途');if(horizon===null)blockers.push('尚未确认资金使用期限');else if(horizon<60)blockers.push('资金期限不足5年，不应直接作为长期权益资金');if(s.pendingOrders.length)blockers.push('存在待成交委托，需先核对冻结资金和成交状态');return {allowed:blockers.length===0,blockers,snapshot:s,purpose:purpose||null}}
+  function decisionLabel(status){return ({draft:'草案',approved:'已批准',submitted:'已挂单',filled:'已成交',cancelled:'已撤销',review:'待复盘',closed:'已结束'})[status]||status||'待确认'}
+  return {ensure,activeFacts,upsertFact,flagFactConflict,savePurpose,pendingOrders,reservedCash,contextRefs,snapshot,adviceGuard,decisionLabel};
+});

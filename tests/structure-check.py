@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 root=Path(__file__).resolve().parents[1]
-s=(root/'index.html').read_text()
+s=(root/'index.html').read_text(encoding='utf-8')
 assert '<style>' not in s and '<script>' not in s
 paths=re.findall(r'(?:href|src)="\./([^"#]+)"',s)
 assert len(paths)>=11,paths
