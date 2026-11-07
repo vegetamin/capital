@@ -1,6 +1,6 @@
 {
   "name": "alice-life-capital-os",
-  "version": "2.3.0",
+  "version": "2.4.0-demo.2",
   "private": true,
   "description": "Local-first personal financial operating system",
   "scripts": {
